@@ -2,6 +2,7 @@ package rest.addressbook
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -31,14 +32,17 @@ class AddressBookServiceTest {
     @Test
     fun serviceIsAlive() {
         // Request the address book
-        val response = restTemplate.getForEntity("http://localhost:$port/contacts", Array<Person>::class.java)
-        assertEquals(200, response.statusCode.value())
-        assertEquals(0, response.body?.size)
+        for (i in 1..2) { //idempotent
+            val response = restTemplate.getForEntity("http://localhost:$port/contacts", Array<Person>::class.java)
+            assertEquals(200, response.statusCode.value())
+            assertEquals(0, response.body?.size)
+        }
 
         //////////////////////////////////////////////////////////////////////
         // Verify that GET /contacts is well implemented by the service, i.e
         // complete the test to ensure that it is safe and idempotent
         //////////////////////////////////////////////////////////////////////
+        assertEquals(0, addressBook.personList.size) //safe
     }
 
     @Test
@@ -50,6 +54,7 @@ class AddressBookServiceTest {
 
         // Create a new user
         var response = restTemplate.postForEntity("http://localhost:$port/contacts", juan, Person::class.java)
+        var firstResponse = response
 
         assertEquals(201, response.statusCode.value())
         assertEquals(juanURI, response.headers.location)
@@ -73,6 +78,9 @@ class AddressBookServiceTest {
         // Verify that POST /contacts is well implemented by the service, i.e
         // complete the test to ensure that it is not safe and not idempotent
         //////////////////////////////////////////////////////////////////////
+        assertNotEquals(0, addressBook.personList.size) //not safe 
+        response = restTemplate.postForEntity("http://localhost:$port/contacts", juan, Person::class.java)
+        assertNotEquals(firstResponse, response) //not idempotent
     }
 
     @Test

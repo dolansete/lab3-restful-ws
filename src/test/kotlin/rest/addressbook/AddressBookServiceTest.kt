@@ -175,6 +175,7 @@ class AddressBookServiceTest {
         val maria = Person(name = "Maria")
 
         var response = restTemplate.exchange(juanURI, HttpMethod.PUT, HttpEntity(maria), Person::class.java)
+        var firstResponse = response
         assertEquals(204, response.statusCode.value())
 
         // Verify that the update is real
@@ -199,6 +200,10 @@ class AddressBookServiceTest {
         // Verify that PUT /contacts/person/2 is well implemented by the service, i.e
         // complete the test to ensure that it is idempotent but not safe
         //////////////////////////////////////////////////////////////////////
+        assertNotEquals("Juan", addressBook.personList.get(1).name) //not safe
+
+        response = restTemplate.exchange(juanURI, HttpMethod.PUT, HttpEntity(maria), Person::class.java)
+        assertEquals(firstResponse, response) //idempotent
     }
 
     @Test
@@ -210,16 +215,21 @@ class AddressBookServiceTest {
         addressBook.personList.add(salvador)
         addressBook.personList.add(juan)
 
-        // Delete a user
-        restTemplate.execute(juanURI, HttpMethod.DELETE, {}, { assertEquals(204, it.statusCode.value()) })
+        var iniSize = addressBook.personList.size
 
-        // Verify that the user has been deleted
-        restTemplate.execute(juanURI, HttpMethod.GET, {}, { assertEquals(404, it.statusCode.value()) })
+        for (i in 1..2){ //idempotent
+            // Delete a user
+            restTemplate.execute(juanURI, HttpMethod.DELETE, {}, { assertEquals(204, it.statusCode.value()) })
+
+            // Verify that the user has been deleted
+            restTemplate.execute(juanURI, HttpMethod.GET, {}, { assertEquals(404, it.statusCode.value()) })
+        }
 
         //////////////////////////////////////////////////////////////////////
         // Verify that DELETE /contacts/person/2 is well implemented by the service, i.e
         // complete the test to ensure that it is idempotent but not safe
         //////////////////////////////////////////////////////////////////////
+        assertNotEquals(iniSize, addressBook.personList.size) // not safe
     }
 
     @Test

@@ -52,6 +52,8 @@ class AddressBookServiceTest {
         val juan = Person(name = "Juan")
         val juanURI: URI = URI.create("http://localhost:$port/contacts/person/1")
 
+        var iniSize = addressBook.personList.size
+
         // Create a new user
         var response = restTemplate.postForEntity("http://localhost:$port/contacts", juan, Person::class.java)
         var firstResponse = response
@@ -78,7 +80,7 @@ class AddressBookServiceTest {
         // Verify that POST /contacts is well implemented by the service, i.e
         // complete the test to ensure that it is not safe and not idempotent
         //////////////////////////////////////////////////////////////////////
-        assertNotEquals(0, addressBook.personList.size) //not safe 
+        assertNotEquals(iniSize, addressBook.personList.size) //not safe 
         response = restTemplate.postForEntity("http://localhost:$port/contacts", juan, Person::class.java)
         assertNotEquals(firstResponse, response) //not idempotent
     }
@@ -111,8 +113,11 @@ class AddressBookServiceTest {
         assertEquals(3, mariaUpdated?.id)
         assertEquals(mariaURI, mariaUpdated?.href)
 
+        var iniSize = addressBook.personList.size
+
         // Check that the new user exists
         response = restTemplate.getForEntity(mariaURI, Person::class.java)
+        var firstResponse = response
 
         assertEquals(200, response.statusCode.value())
         assertEquals(MediaType.APPLICATION_JSON, response.headers.contentType)
@@ -125,6 +130,9 @@ class AddressBookServiceTest {
         // Verify that GET /contacts/person/3 is well implemented by the service, i.e
         // complete the test to ensure that it is safe and idempotent
         //////////////////////////////////////////////////////////////////////
+        assertEquals(iniSize, addressBook.personList.size) //safe
+        response = restTemplate.getForEntity(mariaURI, Person::class.java)
+        assertEquals(firstResponse, response) //idempotent
     }
 
     @Test
@@ -136,17 +144,22 @@ class AddressBookServiceTest {
         addressBook.personList.add(salvador)
         addressBook.personList.add(juan)
 
+        var iniSize = addressBook.personList.size
+
         // Test list of contacts
-        val response = restTemplate.getForEntity("http://localhost:$port/contacts", Array<Person>::class.java)
-        assertEquals(200, response.statusCode.value())
-        assertEquals(MediaType.APPLICATION_JSON, response.headers.contentType)
-        assertEquals(2, response.body?.size)
-        assertEquals(juan.name, response.body?.get(1)?.name)
+        for(i in 1..2){ //idempotent
+            val response = restTemplate.getForEntity("http://localhost:$port/contacts", Array<Person>::class.java)
+            assertEquals(200, response.statusCode.value())
+            assertEquals(MediaType.APPLICATION_JSON, response.headers.contentType)
+            assertEquals(2, response.body?.size)
+            assertEquals(juan.name, response.body?.get(1)?.name)
+        }
 
         //////////////////////////////////////////////////////////////////////
         // Verify that GET /contacts is well implemented by the service, i.e
         // complete the test to ensure that it is safe and idempotent
         //////////////////////////////////////////////////////////////////////
+        assertEquals(iniSize, addressBook.personList.size) //safe
     }
 
     @Test
